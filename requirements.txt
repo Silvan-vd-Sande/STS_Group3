@@ -1,0 +1,4 @@
+numpy==1.20.3
+pynput==1.7.3
+matplotlib==3.7
+./wheel_files/movelladot_pc_sdk-2023.6.0-cp39-none-win_amd64.whl
