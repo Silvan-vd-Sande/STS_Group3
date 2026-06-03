@@ -17,6 +17,13 @@ class MainPage(tk.Frame):
         title = tk.Label(self, text="Main Menu", font=("Arial", 20))
         title.pack(pady=20, padx=40)
 
+        interface_btn = tk.Button(
+            self,
+            text="Interface",
+            command=lambda: contr.show_frame("InterfacePage")
+        )
+        interface_btn.pack(pady=10)
+
         settings_btn = tk.Button(
             self,
             text="Go to Settings",

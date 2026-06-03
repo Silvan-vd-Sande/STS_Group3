@@ -1,3 +1,4 @@
+from __future__ import annotations  # makes all hints strings at runtime
 import tkinter as tk
 from tkinter import ttk
 
@@ -85,12 +86,16 @@ class SettingsPage(tk.Frame):
 
     def s1_changed(self, event: tk.Event) -> None:
         val = self.s1_sensor.get()
-        self.controller.s1_sensor = val
         if val == "None":
             self.s1_reading.config(text="No Sensor Selected")
+            self.controller.s1_sensor = None
+        else:
+            self.controller.s1_sensor = val
 
     def l1_changed(self, event: tk.Event) -> None:
         val = self.l1_sensor.get()
-        self.controller.l1_sensor = val
         if val == "None":
             self.l1_reading.config(text="No Sensor Selected")
+            self.controller.l1_sensor = None
+        else:
+            self.controller.l1_sensor = val

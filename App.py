@@ -1,3 +1,4 @@
+from __future__ import annotations  # makes all hints strings at runtime
 import threading
 import tkinter as tk
 from collections import deque
@@ -5,8 +6,8 @@ from SensorWindow import SensorControlPanel
 from math import atan2, sqrt, sin, cos, pi
 from MainPage import MainPage
 from SettingsPage import SettingsPage
+from InterfacePage import InterfacePage
 import numpy as np
-#from AngleKalman1D import *
 import socket
 
 
@@ -65,7 +66,7 @@ class GyroPlotterApp(tk.Tk):
         self.frames = {}
 
         # Add pages here
-        for Page in (MainPage, SettingsPage):
+        for Page in (MainPage, SettingsPage, InterfacePage):
             page_name = Page.__name__
 
             frame = Page(container, self)
@@ -204,6 +205,14 @@ class GyroPlotterApp(tk.Tk):
                         frame.s1_reading.config(text=f"No new data...")
                     if self.l1_sensor == sensor_id:
                         frame.l1_reading.config(text=f"No new data...")
+
+        if self.frame == "InterfacePage":
+            frame = self.frames["InterfacePage"]
+
+            if self.l1_sensor is None:
+                frame.status_label.config(text="No Sensor Selected")
+            elif self.data[self.l1_sensor]:
+                frame.draw_stickman(self.data[self.l1_sensor][-1]['h_roll'])
 
         # Schedule the next update
         self.after(50, self.pull_data)

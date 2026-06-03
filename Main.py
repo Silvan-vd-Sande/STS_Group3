@@ -1,13 +1,13 @@
+from __future__ import annotations  # makes all hints strings at runtime
 from controllers import BaseController, DotController, EmuController
 import tkinter as tk
 import copy
 from App import GyroPlotterApp
 
-class Project(EmuController):
+class Controller(DotController):
     def __init__(self, sensor_ids):
         super().__init__(sensor_ids, plot_type='disabled', record_data=False)
         self.data_buffer = {sensor_id: [] for sensor_id in self.sensor_ids}
-
 
     def setup_plot(self):
         BaseController.setup_plot(self)
@@ -33,22 +33,20 @@ class Project(EmuController):
         return copied_data_buffer
 
 
-
-def setup(sensor_ids):
-    contr = Project(["./data/logfile_DOT-13_2026-05-07_16-06.csv"])  # Live connection to the sensors
-    #contr = Project(sensor_ids)
+def setup(sensor_ids: list) -> tuple[tk.Tk, Controller]:
+    #contr = Controller(["./data/logfile_DOT-13_2026-05-07_16-06.csv"])  # Live connection to the sensors
+    contr = Controller(sensor_ids)
 
     # Pass your actual controller here
     app = GyroPlotterApp(contr, sensor_ids)
 
     return app, contr
 
-def start_mainloop(app, contr):
+def start_mainloop(app: tk.Tk, contr: Controller) -> None:
     contr.start()
     app.mainloop()
 
-
-def end_mainloop(contr):
+def end_mainloop(contr: Controller) -> None:
     contr.stop()
 
 
