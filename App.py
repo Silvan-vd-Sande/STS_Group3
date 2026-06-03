@@ -10,7 +10,7 @@ import numpy as np
 import socket
 
 
-def wrap_pi(angle):
+def wrap_pi(angle: float) -> float:
     """
     Wrap angle to [-pi, pi].
     """
@@ -79,23 +79,23 @@ class GyroPlotterApp(tk.Tk):
         # Start update loop
         self.pull_data()
 
-    def show_frame(self, page_name):
+    def show_frame(self, page_name: str) -> None:
         self.frame = page_name
         self.frames[page_name].tkraise()
 
-    def open_sensor_window(self, sensor_id):
+    def open_sensor_window(self, sensor_id: str) -> None:
         """Open or focus sensor window"""
         if sensor_id in self.sensor_cps:
             self.close_sensor_cp(sensor_id)
         else:
             self.sensor_cps[sensor_id] = SensorControlPanel(self, sensor_id)
 
-    def close_sensor_cp(self, sensor_id):
+    def close_sensor_cp(self, sensor_id: str) -> None:
         self.sensor_cps[sensor_id].window.destroy()
         del self.sensor_cps[sensor_id]
 
-    def pull_data(self):
-        """Called every second to fetch new data and update the overview plot"""
+    def pull_data(self) -> None:
+        """Called every 50ms to fetch new data and update the heading"""
         buffer = self.controller.get_data_buffer()
 
         for sensor_id in self.sensor_ids:
@@ -128,6 +128,7 @@ class GyroPlotterApp(tk.Tk):
                             sqrt(acc_y ** 2 + acc_z ** 2)
                         )
 
+                        # Complementary Filter
                         gyr_roll = wrap_pi(self.data[sensor_id][-1]["h_roll"] + gyr_x * delta_time)
                         gyr_pitch = wrap_pi(self.data[sensor_id][-1]["h_pitch"] + gyr_y * delta_time)
 

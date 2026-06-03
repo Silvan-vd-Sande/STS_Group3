@@ -83,13 +83,13 @@ class SettingsPage(tk.Frame):
         self.columnconfigure(0, weight=1)
         self.columnconfigure(4, weight=1)
 
-    def s1_changed(self, event):
+    def s1_changed(self, event: tk.Event) -> None:
         val = self.s1_sensor.get()
         self.controller.s1_sensor = val
         if val == "None":
             self.s1_reading.config(text="No Sensor Selected")
 
-    def l1_changed(self, event):
+    def l1_changed(self, event: tk.Event) -> None:
         val = self.l1_sensor.get()
         self.controller.l1_sensor = val
         if val == "None":

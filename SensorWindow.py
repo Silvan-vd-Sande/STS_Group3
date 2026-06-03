@@ -11,6 +11,7 @@ import time
 import ScatterPlot
 from LinePlot import LinePlot
 from ScatterPlot import ScatterPlot
+from typing import Union, Optional
 
 
 class SensorControlPanel:
@@ -203,10 +204,8 @@ class SensorControlPanel:
         # Start main thread polling loop to check queue and draw
         self.poll_draw_queue()
 
-    def background_update_loop(self):
-        """
-        BACKGROUND THREAD: All processing happens here.
-        """
+    def background_update_loop(self) -> None:
+        """All processing happens here."""
         while self.window.winfo_exists():
             try:
                 # Get data from parent
@@ -230,10 +229,8 @@ class SensorControlPanel:
                 print(f"Error in background thread for {self.sensor_id}: {e}")
                 time.sleep(1)
 
-    def poll_draw_queue(self):
-        """
-        MAIN THREAD: Poll the queue and draw any pending frames.
-        """
+    def poll_draw_queue(self) -> None:
+        """Poll the queue and draw any pending frames."""
         try:
             # Non-blocking check for queued data
             plot_data = self.draw_queue.get_nowait()
@@ -248,18 +245,16 @@ class SensorControlPanel:
         # Schedule next poll
         self.window.after(100, self.poll_draw_queue)  # >10fps polling. System events bottleneck
 
-    def _draw_plot(self, plot_data):
+    def _draw_plot(self, plot_data: dict) -> None:
         if len(plot_data['time']) < 2:
             return
 
         for plot in self.plots:
             plot.draw_plot(plot_data)
 
-    def process_plot_data(self, data):
-        """
-        BACKGROUND THREAD: Extract and process data for plotting.
-        This is the expensive numpy/list comprehension work.
-        """
+    def process_plot_data(self, data: list[dict]) -> Optional[dict[str, float]]:
+        """Extract and process data for plotting.
+        This is the expensive numpy/list comprehension work."""
 
         if not data:
             return None
@@ -311,13 +306,13 @@ class SensorControlPanel:
 
         return data_formatted
 
-    def collect_gyr_cal_samples(self, data):
+    def collect_gyr_cal_samples(self, data: list[dict[str, tuple]]) -> None:
         """Collect raw gyro samples during calibration"""
         with self.parent.lock:
             for datapoint in data:
                 self.gyr_samples.append(datapoint["gyr"])
 
-    def collect_mag_cal_samples(self, data):
+    def collect_mag_cal_samples(self, data: list[dict[str, tuple]]) -> None:
         """Collect raw magnetometer samples during calibration"""
         with self.parent.lock:
             for datapoint in data:
@@ -326,7 +321,7 @@ class SensorControlPanel:
                     self.mag_lim[axis + '_max'] = max(self.mag_lim[axis + '_max'], vals[i])
                     self.mag_lim[axis + '_min'] = min(self.mag_lim[axis + '_min'], vals[i])
 
-    def calibrate_gyro(self):
+    def calibrate_gyro(self) -> None:
         """Start gyro calibration - non-blocking"""
         if self.calibrating_gyr:
             messagebox.showwarning(
@@ -349,7 +344,7 @@ class SensorControlPanel:
         # Schedule finish in 5 seconds
         self.window.after(5000, self.finish_gyr_calibration)
 
-    def finish_gyr_calibration(self):
+    def finish_gyr_calibration(self) -> None:
         """Finish calibration and calculate average bias"""
         self.calibrating_gyr = False
 
@@ -385,7 +380,7 @@ class SensorControlPanel:
             parent=self.window
         )
 
-    def reset_gyr_calibration(self):
+    def reset_gyr_calibration(self) -> None:
         """Reset calibration to zero"""
         zeros = np.zeros(3, dtype=np.float64)
         self.parent.gyr_biases[self.sensor_id] = zeros
@@ -397,7 +392,7 @@ class SensorControlPanel:
             parent=self.window
         )
 
-    def update_gyr_cal_display(self, bias):
+    def update_gyr_cal_display(self, bias: np.ndarray) -> None:
         """Update the calibration info label"""
         self.gyr_cal_info_label.config(
             text=f"Bias: X={bias[0]:.4f}°/s, "
@@ -405,7 +400,7 @@ class SensorControlPanel:
                  f"Z={bias[2]:.4f}°/s"
         )
 
-    def calibrate_mag(self):
+    def calibrate_mag(self) -> None:
         """Start gyro calibration - non-blocking"""
         if self.calibrating_mag:
             messagebox.showwarning(
@@ -419,7 +414,7 @@ class SensorControlPanel:
         self.cal_mag_button.config(text="Stop Calibrating", command=self.finish_mag_calibration, bg="#CCCCCC")
 
 
-    def finish_mag_calibration(self):
+    def finish_mag_calibration(self) -> None:
         """Finish calibration and calculate average bias"""
         self.calibrating_mag = False
 
@@ -444,7 +439,7 @@ class SensorControlPanel:
             parent=self.window
         )
 
-    def reset_mag_calibration(self):
+    def reset_mag_calibration(self) -> None:
         """Reset calibration to zero"""
         zeros = np.zeros(3, dtype=np.float64)
         self.parent.mag_biases[self.sensor_id] = zeros
@@ -456,7 +451,7 @@ class SensorControlPanel:
             parent=self.window
         )
 
-    def update_mag_cal_display(self, bias):
+    def update_mag_cal_display(self, bias: np.ndarray) -> None:
         """Update the calibration info label"""
         self.mag_cal_info_label.config(
             text=f"Bias: X={bias[0]:.4f}a.u., "
@@ -464,7 +459,7 @@ class SensorControlPanel:
                  f"Z={bias[2]:.4f}a.u."
         )
 
-    def on_resize(self, event):
+    def on_resize(self, event: tk.Event) -> None:
         """Resize plot backgrounds for blitting"""
         for plot in self.plots:
             plot.background_needs_cache = True
