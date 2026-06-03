@@ -9,7 +9,7 @@ class MainPage(tk.Frame):
         super().__init__(parent)
 
         title = tk.Label(self, text="Main Menu", font=("Arial", 20))
-        title.pack(pady=20)
+        title.pack(pady=20, padx=40)
 
         settings_btn = tk.Button(
             self,

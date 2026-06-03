@@ -47,7 +47,7 @@ class SensorControlPanel:
 
         self.MAX_READINGS = 300
 
-        plt1 = LinePlot(self, 0, 0, f'Gyro raw', [-3.14, 3.14], resizable=.1, ylabel='Degrees/s')
+        plt1 = LinePlot(self, 0, 0, f'Gyro raw', [-3.14, 3.14], resizable=.1, ylabel='Radians/s')
         plt1.add_lines(('X', 'gyr_x', '#FF6B6B'),
                         ('Y', 'gyr_y', '#4ECDC4'),
                         ('Z', 'gyr_z', '#0000ff'))
@@ -66,12 +66,12 @@ class SensorControlPanel:
         plt4.add_lines(('pitch', 'acc_pitch', '#FF6B6B'),
                        ('roll', 'acc_roll', '#4ECDC4'))
 
-        plt5 = LinePlot(self, 1, 1, 'Filter Angle', [-3.14, 3.14], ylabel='Radians')
+        plt5 = LinePlot(self, 1, 1, 'Complementary Filter Angle', [-3.14, 3.14], ylabel='Radians')
         plt5.add_lines(('pitch', 'pitch', '#FF6B6B'),
                        ('roll', 'roll', '#4ECDC4'),
                        ('yaw', 'yaw', '#0000ff'))
 
-        plt6 = ScatterPlot(self, 1, 2, 'XY Magnetomete', [-1.5, 1.5], [-1.5, 1.5])
+        plt6 = ScatterPlot(self, 1, 2, 'XY Magnetometer', [-1.5, 1.5], [-1.5, 1.5])
         plt6.add_scatter(('XY', 'mag_x', 'mag_y', '#0000ff'))
 
         self.plots = [plt1, plt2, plt3, plt4, plt5, plt6]

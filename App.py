@@ -32,6 +32,8 @@ class GyroPlotterApp(tk.Tk):
         # Shared data
         self.sensor_cps = {}
         self.max_readings = 300
+        self.l1_sensor = None
+        self.s1_sensor = None
 
         self.data = {
             sensor_id: deque(maxlen=self.max_readings)
@@ -57,6 +59,8 @@ class GyroPlotterApp(tk.Tk):
         # Main container
         container = tk.Frame(self)
         container.pack(fill="both", expand=True)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(0, weight=1)
 
         self.frames = {}
 
@@ -76,8 +80,8 @@ class GyroPlotterApp(tk.Tk):
         self.pull_data()
 
     def show_frame(self, page_name):
-        frame = self.frames[page_name]
-        frame.tkraise()
+        self.frame = page_name
+        self.frames[page_name].tkraise()
 
     def open_sensor_window(self, sensor_id):
         """Open or focus sensor window"""
@@ -108,7 +112,7 @@ class GyroPlotterApp(tk.Tk):
 
                     # Add new readings
                     for datapoint in buffer[sensor_id]:
-                        datapoint["gyr"] = np.deg2rad(datapoint["gyr"] - self.gyr_biases[sensor_id])
+                        datapoint["gyr"] = datapoint["gyr"] - self.gyr_biases[sensor_id]
                         datapoint["mag"] -= self.mag_biases[sensor_id]
 
                         delta_time = (datapoint["timestamp"] - self.data[sensor_id][-1]["timestamp"]) / 10000
@@ -117,7 +121,7 @@ class GyroPlotterApp(tk.Tk):
                         acc_x, acc_y, acc_z = datapoint["acc"]
                         mag_x, mag_y, mag_z = datapoint["mag"]
 
-                        acc_roll = atan2(acc_x, acc_z)
+                        acc_roll = atan2(acc_y, acc_z)
 
                         acc_pitch = atan2(
                             -acc_x,
@@ -130,13 +134,13 @@ class GyroPlotterApp(tk.Tk):
                         roll_delta = wrap_pi(acc_roll - gyr_roll)
                         pitch_delta = wrap_pi(acc_pitch - gyr_pitch)
 
-                        alpha = 0.03
+                        tau = 1
+
+                        alpha = 1 - tau / (tau + delta_time)
                         roll = wrap_pi(gyr_roll + alpha * roll_delta)
                         pitch = wrap_pi(gyr_pitch + alpha * pitch_delta)
 
-
                         Xh = mag_x * cos(pitch) + mag_z * sin(pitch)
-
                         Yh = (
                                 mag_x * sin(roll) * sin(pitch)
                                 - mag_y * cos(roll)
@@ -178,12 +182,27 @@ class GyroPlotterApp(tk.Tk):
                         text=f"{sensor_id}: Readings {len(self.data[sensor_id])}/{self.max_readings} | Time: {self.data[sensor_id][-1]['time_sec']:.2f}s",
                         fg="green"
                     )
+
+                if self.frame == "SettingsPage":
+                    frame = self.frames["SettingsPage"]
+                    if self.s1_sensor == sensor_id:
+                        frame.s1_reading.config(text=f"Roll: {self.data[sensor_id][-1]['h_roll']:.2f} Radian")
+                    if self.l1_sensor == sensor_id:
+                        frame.l1_reading.config(text=f"Roll: {self.data[sensor_id][-1]['h_roll']:.2f} Radian")
+
             else:
                 if cp:
                     self.sensor_cps[sensor_id].status_label.config(
                         text=f"No new data...",
                         fg="orange"
                     )
+
+                if self.frame == "SettingsPage":
+                    frame = self.frames["SettingsPage"]
+                    if self.s1_sensor == sensor_id:
+                        frame.s1_reading.config(text=f"No new data...")
+                    if self.l1_sensor == sensor_id:
+                        frame.l1_reading.config(text=f"No new data...")
 
         # Schedule the next update
         self.after(50, self.pull_data)
