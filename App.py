@@ -11,7 +11,7 @@ import numpy as np
 import socket
 
 
-def wrap_pi(angle: float) -> float:
+def wrap_pi(angle: np.ndarray) -> np.ndarray:
     """
     Wrap angle to [-pi, pi].
     """
@@ -164,6 +164,12 @@ class GyroPlotterApp(tk.Tk):
                         with self.lock:
                             self.data[sensor_id].append(datapoint)
 
+                    if self.frames["InterfacePage"].calibrating_up:
+                        if sensor_id == self.l1_sensor:
+                            self.frames["InterfacePage"].collect_l1_cal_data(list(self.data[sensor_id])[-len(buffer[sensor_id]):])
+                        if sensor_id == self.s1_sensor:
+                            self.frames["InterfacePage"].collect_s1_cal_data(list(self.data[sensor_id])[-len(buffer[sensor_id]):])
+
                 else:
                     # First reading
                     with self.lock:
@@ -209,10 +215,10 @@ class GyroPlotterApp(tk.Tk):
         if self.frame == "InterfacePage":
             frame = self.frames["InterfacePage"]
 
-            if self.l1_sensor is None:
+            if self.l1_sensor is None or self.s1_sensor is None:
                 frame.status_label.config(text="No Sensor Selected")
-            elif self.data[self.l1_sensor]:
-                frame.draw_stickman(self.data[self.l1_sensor][-1]['h_roll'])
+            elif self.data[self.l1_sensor] and self.data[self.s1_sensor]:
+                frame.draw_stickman(self.data[self.l1_sensor][-1]['h_roll'], self.data[self.s1_sensor][-1]['h_roll'])
 
         # Schedule the next update
         self.after(50, self.pull_data)

@@ -1,8 +1,5 @@
 import tkinter as tk
 import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.figure import Figure
 from tkinter import messagebox
 import threading
 import queue
@@ -11,7 +8,7 @@ import time
 import ScatterPlot
 from LinePlot import LinePlot
 from ScatterPlot import ScatterPlot
-from typing import Union, Optional
+from typing import Optional
 
 
 class SensorControlPanel:
@@ -34,6 +31,7 @@ class SensorControlPanel:
         self.gyr_samples = []
         self.calibrating_mag = False
         self.mag_lim = {'x_max': 0, 'x_min': 0, 'y_max': 0, 'y_min': 0, 'z_max': 0, 'z_min': 0}
+        self.mag_updated_flag = False
 
         # Plot container
         self.plot_frame = tk.Frame(self.window)
@@ -314,6 +312,7 @@ class SensorControlPanel:
 
     def collect_mag_cal_samples(self, data: list[dict[str, tuple]]) -> None:
         """Collect raw magnetometer samples during calibration"""
+        self.mag_updated_flag = True
         with self.parent.lock:
             for datapoint in data:
                 vals = datapoint["mag"]
@@ -347,6 +346,7 @@ class SensorControlPanel:
     def finish_gyr_calibration(self) -> None:
         """Finish calibration and calculate average bias"""
         self.calibrating_gyr = False
+        self.cal_gyr_button.config(state=tk.NORMAL, bg="#4CAF50")
 
         if not self.gyr_samples:
             messagebox.showerror(
@@ -354,8 +354,6 @@ class SensorControlPanel:
                 "No samples collected!",
                 parent=self.window
             )
-            self.cal_gyr_button.config(state=tk.NORMAL, bg="#4CAF50")
-            self.gyr_cal_status_label.config(text="")
             return
 
         # Calculate average bias
@@ -365,7 +363,6 @@ class SensorControlPanel:
 
         self.gyr_samples = []
 
-        self.cal_gyr_button.config(state=tk.NORMAL, bg="#4CAF50")
         self.gyr_cal_status_label.config(text="✓ Calibrated")
 
         self.update_gyr_cal_display(gyr_bias)
@@ -417,6 +414,13 @@ class SensorControlPanel:
     def finish_mag_calibration(self) -> None:
         """Finish calibration and calculate average bias"""
         self.calibrating_mag = False
+        if not self.mag_updated_flag:
+            messagebox.showerror(
+                "Calibration Error",
+                "No samples collected!",
+                parent=self.window
+            )
+            return
 
         x_offset = (self.mag_lim['x_min'] + self.mag_lim['x_max']) / 2.
         y_offset = (self.mag_lim['y_min'] + self.mag_lim['y_max']) / 2.

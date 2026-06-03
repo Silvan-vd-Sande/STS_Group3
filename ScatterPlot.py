@@ -9,17 +9,18 @@ class ScatterPlot(PlotBase):
 
         self.scatters = []
 
-    def add_scatter(self, *scatter):
+    def add_scatter(self, *scatters: tuple[str, str, str, str]) -> None:
         empty = np.empty(self.parent.MAX_READINGS)
 
-        for label, data_x, data_y, colour in scatter:
+        for label, data_x, data_y, colour in scatters:
             scatter = self.ax.scatter(empty, empty, c=colour, s=100, label=label)
             scatter.set_animated(True)
 
             self.scatters.append({'scatter': scatter, 'data_x': data_x, 'data_y': data_y})
+
         self.ax.legend(loc='upper left')
 
-    def draw_artists(self, data):
+    def draw_artists(self, data: dict[str, np.ndarray]) -> None:
         # Update scatters
         for scatter_data in self.scatters:
             scatter_data['scatter'].set_offsets(
@@ -27,7 +28,7 @@ class ScatterPlot(PlotBase):
             )
             self.ax.draw_artist(scatter_data['scatter'])
 
-    def resize_automatic(self, data):
+    def resize_automatic(self, data: dict[str, np.ndarray]) -> None:
 
         all_values = np.concatenate([data[scatter['data_x']] for scatter in self.scatters])
         min_val, max_val = np.nanmin(all_values), np.nanmax(all_values)

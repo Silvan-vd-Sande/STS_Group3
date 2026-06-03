@@ -1,18 +1,33 @@
+from __future__ import annotations
 import tkinter as tk
 import math
 import numpy as np
+from tkinter import messagebox
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from App import GyroPlotterApp
+
 
 class InterfacePage(tk.Frame):
     def __init__(self, parent, contr):
         super().__init__(parent)
-        self.contr = contr
         self.config(bg="#f5f5f5")
+        self.contr = contr
 
         self.base_x = 350
         self.base_y = 360
         self.max_degrees = 80
         self.body_length = 130
         self.head_radius = 28
+
+        self.l1_offset = 0.
+        self.s1_offset = 0.
+        self.lumbar_offset = 0.
+        self.calibrating_up = False
+        self.cal_samples_l1 = []
+        self.cal_samples_s1 = []
 
         self.feedback_label_states = {
             "GOOD": ("Good lifting posture: the back is almost straight.", "green"),
@@ -26,10 +41,13 @@ class InterfacePage(tk.Frame):
             font=("Arial", 24, "bold"),
             bg="#f5f5f5"
         )
-        title_label.pack(pady=15)
+        title_label.grid(row=0, column=1, columnspan=2)
+
+        vis = tk.Frame(self)
+        vis.grid(row=1, column=1, sticky="nsew")
 
         self.status_label = tk.Label(
-            self,
+            vis,
             text="Status: -",
             font=("Arial", 20, "bold"),
             bg="#f5f5f5"
@@ -37,7 +55,7 @@ class InterfacePage(tk.Frame):
         self.status_label.pack()
 
         self.sensor_label = tk.Label(
-            self,
+            vis,
             text="Sensor value: -",
             font=("Arial", 14),
             bg="#f5f5f5"
@@ -45,9 +63,9 @@ class InterfacePage(tk.Frame):
         self.sensor_label.pack(pady=5)
 
         self.canvas = tk.Canvas(
-            self,
+            vis,
             width=900,
-            height=500,
+            height=450,
             bg="white",
             highlightthickness=2,
             highlightbackground="#cccccc"
@@ -55,7 +73,7 @@ class InterfacePage(tk.Frame):
         self.canvas.pack(pady=20)
 
         self.feedback_label = tk.Label(
-            self,
+            vis,
             text="Waiting for sensor data...",
             font=("Arial", 13),
             bg="#f5f5f5",
@@ -63,31 +81,46 @@ class InterfacePage(tk.Frame):
         )
         self.feedback_label.pack(pady=10)
 
+        buttons = tk.Frame(self)
+        buttons.grid(row=1, column=2, sticky="nsew")
+
         back_btn = tk.Button(
-            self,
+            buttons,
             text="Back",
             command=lambda: contr.show_frame("MainPage")
         )
-        back_btn.pack(pady=10)
+        back_btn.pack(pady=10, side='top')
 
-    @staticmethod
-    def determine_status(sensor_rad):
-        sensor_degrees = np.rad2deg(sensor_rad)
+        self.cal_btn = tk.Button(
+            buttons,
+            text="Calibrate",
+            command=self.start_cal_up
+        )
+        self.cal_btn.pack(pady=10, side='top')
 
-        if  30 > sensor_degrees  :
-            return "GOOD", "green"
-        elif  40 > sensor_degrees > 30 :
-            return "WARNING", "orange"
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(3, weight=1)
+
+    def determine_status(self, l1_angle: float, s1_angle: float) -> tuple[float, str, str]:
+        raw_lumbar = self.angle_diff(s1_angle, l1_angle)
+        print(l1_angle, s1_angle)
+
+        lumbar_angle = self.angle_diff(raw_lumbar, self.lumbar_offset)
+        angle_deg = np.rad2deg(lumbar_angle)
+
+        if  30 > angle_deg  :
+            return angle_deg, "GOOD", "green"
+        elif  40 > angle_deg :
+            return angle_deg, "WARNING", "orange"
         else :
-            return "BAD", "red"
+            return angle_deg, "BAD", "red"
 
 
-    def draw_stickman(self, sensor_rad):
+    def draw_stickman(self, l1_angle: float, s1_angle: float) -> None:
         self.canvas.delete("all")
 
         #base coordinates
-        status, color = self.determine_status(sensor_rad)
-        sensor_degrees = math.degrees(sensor_rad)
+        sensor_degrees, status, color = self.determine_status(l1_angle, s1_angle)
 
         angle_degrees = min(sensor_degrees, self.max_degrees)
         angle_rad = math.radians(angle_degrees)
@@ -127,9 +160,9 @@ class InterfacePage(tk.Frame):
 
         #body line
         self.canvas.create_line(
-            hip_x, hip_y,
+            [hip_x, hip_y,
             mid_x, mid_y,
-            shoulder_x, shoulder_y,
+            shoulder_x, shoulder_y],
             width=7,
             fill=color,
             smooth=True
@@ -239,3 +272,72 @@ class InterfacePage(tk.Frame):
 
         label_data = self.feedback_label_states[status]
         self.feedback_label.config(text=label_data[0], fg=label_data[1])
+
+    def start_cal_up(self) -> None:
+        self.calibrating_up = True
+        self.cal_btn.config(state=tk.DISABLED, bg="#CCCCCC")
+
+        messagebox.showinfo(
+            "Calibration",
+            f"Stand upright and completely still for 5 seconds.\n"
+            f"Dialog will close automatically.",
+            parent=self
+        )
+
+        self.contr.after(5000, self.finish_cal_up)
+
+    @staticmethod
+    def circular_mean(angles: list[float]) -> np.ndarray:
+        return np.arctan2(
+            np.mean(np.sin(angles)),
+            np.mean(np.cos(angles))
+        )
+
+    @staticmethod
+    def angle_diff(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+        """Returns a - b wrapped to [-pi, pi)."""
+        return np.arctan2(
+            np.sin(a - b),
+            np.cos(a - b)
+        )
+
+    def finish_cal_up(self) -> None:
+        self.cal_btn.config(state=tk.NORMAL, bg="#4CAF50")
+
+        if not (self.cal_samples_l1 and self.cal_samples_s1):
+            messagebox.showerror(
+                "Calibration Error",
+                "No samples collected!",
+                parent=self
+            )
+            return
+
+        self.l1_offset = self.circular_mean(self.cal_samples_l1)
+        self.s1_offset = self.circular_mean(self.cal_samples_s1)
+        self.lumbar_offset = self.angle_diff(self.s1_offset, self.l1_offset)
+
+        self.cal_samples_l1 = []
+        self.cal_samples_s1 = []
+
+        print(np.rad2deg(self.l1_offset))
+        print(np.rad2deg(self.s1_offset))
+
+        messagebox.showinfo(
+            "Calibration Complete",
+            f"Bias of {np.rad2deg(self.l1_offset):.1f} degrees at l1.\n"
+            f"Bias of {np.rad2deg(self.s1_offset):.1f} degrees at s1.\n"
+            f"Lumbar Offset is {np.rad2deg(self.lumbar_offset):.1f} degrees.\n",
+            parent=self
+        )
+
+    def collect_l1_cal_data(self, data: list[dict[str, tuple]]) -> None:
+        """Collect l1 roll samples during calibration"""
+        with self.contr.lock:
+            for datapoint in data:
+                self.cal_samples_l1.append(datapoint["h_roll"])
+
+    def collect_s1_cal_data(self, data: list[dict[str, tuple]]) -> None:
+        """Collect s1 roll samples during calibration"""
+        with self.contr.lock:
+            for datapoint in data:
+                self.cal_samples_s1.append(datapoint["h_roll"])

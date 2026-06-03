@@ -1,5 +1,6 @@
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import numpy as np
 
 class PlotBase:
     def __init__(self, parent, row, col, title, ylim, xlim, resizable, xlabel, ylabel):
@@ -45,7 +46,7 @@ class PlotBase:
 
         self.background_needs_cache = True
 
-    def draw_plot(self, data):
+    def draw_plot(self, data: dict[str, np.ndarray]) -> None:
         if self.background_needs_cache:
             # Update limits if needed
             self.ax.set_ylim(*self.ylim)
@@ -65,10 +66,10 @@ class PlotBase:
         # Blit only this axes
         self.canvas.blit(self.ax.bbox)
 
-    def draw_artists(self, data):
+    def draw_artists(self, data: dict[str, np.ndarray]) -> None:
         # Defined by the plot type
         return
 
-    def destroy(self):
+    def destroy(self) -> None:
         """Clean up the plot."""
         self.canvas.get_tk_widget().destroy()

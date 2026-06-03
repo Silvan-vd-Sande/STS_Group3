@@ -10,7 +10,7 @@ class LinePlot(PlotBase):
         self.ax.ticklabel_format(style='sci')
         self.lines = []
 
-    def add_lines(self, *lines):
+    def add_lines(self, *lines: tuple[str, str, str]) -> None:
         for label, data, colour in lines:
             line, = self.ax.plot([], [], linestyle='-', linewidth=2,
                             color=colour, label=label)
@@ -18,14 +18,14 @@ class LinePlot(PlotBase):
             self.lines.append({'line': line, 'data': data})
         self.ax.legend(loc='upper left')
 
-    def draw_artists(self, data):
+    def draw_artists(self, data: dict[str, np.ndarray]) -> None:
         # Update lines
         for line_data in self.lines:
             line_data['line'].set_data(data['time'], data[line_data['data']])
 
             self.ax.draw_artist(line_data['line'])
 
-    def resize_automatic(self, data):
+    def resize_automatic(self, data: dict[str, np.ndarray]) -> None:
         all_values = np.concatenate([data[line['data']] for line in self.lines])
         min_val, max_val = float(np.nanmin(all_values)), float(np.nanmax(all_values))
 
