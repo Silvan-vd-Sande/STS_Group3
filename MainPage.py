@@ -1,8 +1,14 @@
+from __future__ import annotations  # makes all hints strings at runtime
 import tkinter as tk
 import socket
 import random
 import threading
-from Main import Controller
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from Main import Controller  # only imported by type checkers, never at runtime
+
 
 class MainPage(tk.Frame):
     def __init__(self, parent, contr):
