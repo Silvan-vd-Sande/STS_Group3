@@ -1,7 +1,12 @@
 import numpy as np
-from math import pi
+from math import atan2, sqrt, sin, cos, pi
 
 
+def wrap_pi(angle):
+    """
+    Wrap angle to [-pi, pi].
+    """
+    return (angle + pi) % (2.0 * pi) - pi
 
 
 class AngleKalman1D:
@@ -20,13 +25,13 @@ class AngleKalman1D:
     """
 
     def __init__(
-        self,
-        initial_angle=0.0,
-        initial_bias=0.0,
-        q_angle=1e-5,
-        q_bias=1e-6,
-        p_angle=0.05,
-        p_bias=0.01
+            self,
+            initial_angle=0.0,
+            initial_bias=0.0,
+            q_angle=1e-5,
+            q_bias=1e-6,
+            p_angle=0.05,
+            p_bias=0.01
     ):
         self.angle = wrap_pi(initial_angle)
         self.bias = initial_bias
@@ -48,7 +53,7 @@ class AngleKalman1D:
         dt must be in seconds.
         """
         if dt <= 0:
-            return self.angle
+            raise ValueError(f"dt must be positive, got {dt}")
 
         corrected_rate = gyro_rate - self.bias
         self.angle = wrap_pi(self.angle + dt * corrected_rate)
@@ -59,7 +64,7 @@ class AngleKalman1D:
         ])
 
         Q = np.array([
-            [self.q_angle * dt, 0.0],
+            [self.q_angle * dt * dt, 0.0],
             [0.0, self.q_bias * dt]
         ])
 
@@ -94,7 +99,7 @@ class AngleKalman1D:
         H = np.array([[1.0, 0.0]])
         I = np.eye(2)
 
-        self.P = (I - K @ H) @ self.P @ (I - K @ H).T + K * R @ K.T
+        self.P = (I - K @ H) @ self.P @ (I - K @ H).T + R * (K @ K.T)
 
         self.last_gain = np.array([K0, K1])
         self.last_innovation = innovation

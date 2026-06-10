@@ -5,6 +5,10 @@ import numpy as np
 from tkinter import messagebox
 
 from typing import TYPE_CHECKING
+import threading
+import random
+import socket
+
 
 if TYPE_CHECKING:
     from App import GyroPlotterApp
@@ -101,7 +105,9 @@ class InterfacePage(tk.Frame):
         self.columnconfigure(0, weight=1)
         self.columnconfigure(3, weight=1)
 
-    def determine_status(self, l1_angle: float, s1_angle: float) -> tuple[float, str, str]:
+        self.status = 0
+
+    def determine_status(self, l1_angle: float, s1_angle: float) -> tuple[float, str, str, int]:
         raw_lumbar = self.angle_diff(s1_angle, l1_angle)
         print(l1_angle, s1_angle)
 
@@ -109,18 +115,20 @@ class InterfacePage(tk.Frame):
         angle_deg = np.rad2deg(lumbar_angle)
 
         if  30 > angle_deg  :
-            return angle_deg, "GOOD", "green"
+            return angle_deg, "GOOD", "green", 0
         elif  40 > angle_deg :
-            return angle_deg, "WARNING", "orange"
+            return angle_deg, "WARNING", "orange", 1
         else :
-            return angle_deg, "BAD", "red"
+            return angle_deg, "BAD", "red", 1
 
 
     def draw_stickman(self, l1_angle: float, s1_angle: float) -> None:
         self.canvas.delete("all")
 
         #base coordinates
-        sensor_degrees, status, color = self.determine_status(l1_angle, s1_angle)
+        sensor_degrees, status, color, level = self.determine_status(l1_angle, s1_angle)
+        if level != self.status:
+            self.send_to_esp(self.contr)
 
         angle_degrees = min(sensor_degrees, self.max_degrees)
         angle_rad = math.radians(angle_degrees)
@@ -294,7 +302,7 @@ class InterfacePage(tk.Frame):
         )
 
     @staticmethod
-    def angle_diff(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    def angle_diff(a, b) -> np.ndarray:
         """Returns a - b wrapped to [-pi, pi)."""
         return np.arctan2(
             np.sin(a - b),
@@ -319,9 +327,6 @@ class InterfacePage(tk.Frame):
         self.cal_samples_l1 = []
         self.cal_samples_s1 = []
 
-        print(np.rad2deg(self.l1_offset))
-        print(np.rad2deg(self.s1_offset))
-
         messagebox.showinfo(
             "Calibration Complete",
             f"Bias of {np.rad2deg(self.l1_offset):.1f} degrees at l1.\n"
@@ -341,3 +346,20 @@ class InterfacePage(tk.Frame):
         with self.contr.lock:
             for datapoint in data:
                 self.cal_samples_s1.append(datapoint["h_roll"])
+
+    def send_to_esp(self, contr: GyroPlotterApp) -> None:
+        """Send message to ESP on separate Thread"""
+        thread = threading.Thread(target=self._esp_task, args=(contr,))
+        thread.daemon = True
+        thread.start()
+
+    def _esp_task(self, contr: GyroPlotterApp) -> None:
+        num = random.randint(0, 2)
+        print(num)
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(5)  # Don't hang forever
+                s.connect((contr.ESP_IP, contr.SERVER_PORT))
+                s.sendall(str(num).encode())
+        except (ConnectionResetError, OSError) as e:
+            print(f"Connection failed: {e}")

@@ -4,7 +4,7 @@ import tkinter as tk
 import copy
 from App import GyroPlotterApp
 
-class Controller(DotController):
+class Controller(EmuController):
     def __init__(self, sensor_ids):
         super().__init__(sensor_ids, plot_type='disabled', record_data=False)
         self.data_buffer = {sensor_id: [] for sensor_id in self.sensor_ids}
@@ -34,8 +34,8 @@ class Controller(DotController):
 
 
 def setup(sensor_ids: list) -> tuple[tk.Tk, Controller]:
-    #contr = Controller(["./data/logfile_DOT-13_2026-05-07_16-06.csv"])  # Live connection to the sensors
-    contr = Controller(sensor_ids)
+    contr = Controller(["./data/logfile_DOT-13_2026-05-07_16-06.csv"])  # Live connection to the sensors
+    #contr = Controller(sensor_ids)
 
     # Pass your actual controller here
     app = GyroPlotterApp(contr, sensor_ids)

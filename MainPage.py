@@ -64,6 +64,7 @@ class MainPage(tk.Frame):
 
     def _esp_task(self, contr: GyroPlotterApp) -> None:
         num = random.randint(0, 2)
+        print(num)
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(5)  # Don't hang forever
