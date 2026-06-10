@@ -60,6 +60,12 @@ class SettingsPage(tk.Frame):
         )
         self.l1_reading.pack()
 
+        # l1 orientation
+        self.l1_ori = ttk.Combobox(l1_frame, values=["RIGHT", "LEFT"], state="readonly")
+        self.l1_ori.set(controller.l1_ori)
+        self.l1_ori.pack()
+        self.l1_ori.bind('<<ComboboxSelected>>', self.l1_ori_changed)
+
         s1_frame = tk.Frame(self)
         s1_frame.grid(row=1, column=3, padx=(20, 40), sticky="nsew")
 
@@ -81,8 +87,22 @@ class SettingsPage(tk.Frame):
         )
         self.s1_reading.pack()
 
+        # s1 orientation
+        self.s1_ori = ttk.Combobox(s1_frame, values=["RIGHT", "LEFT"], state="readonly")
+        self.s1_ori.set(controller.s1_ori)
+        self.s1_ori.pack()
+        self.s1_ori.bind('<<ComboboxSelected>>', self.s1_ori_changed)
+
         self.columnconfigure(0, weight=1)
         self.columnconfigure(4, weight=1)
+
+    def l1_changed(self, event: tk.Event) -> None:
+        val = self.l1_sensor.get()
+        if val == "None":
+            self.l1_reading.config(text="No Sensor Selected")
+            self.controller.l1_sensor = None
+        else:
+            self.controller.l1_sensor = val
 
     def s1_changed(self, event: tk.Event) -> None:
         val = self.s1_sensor.get()
@@ -92,10 +112,9 @@ class SettingsPage(tk.Frame):
         else:
             self.controller.s1_sensor = val
 
-    def l1_changed(self, event: tk.Event) -> None:
-        val = self.l1_sensor.get()
-        if val == "None":
-            self.l1_reading.config(text="No Sensor Selected")
-            self.controller.l1_sensor = None
-        else:
-            self.controller.l1_sensor = val
+    def l1_ori_changed(self, event: tk.Event) -> None:
+        self.controller.l1_ori = self.l1_ori.get()
+        print(self.controller.l1_ori, self.controller.l1_ori == "LEFT")
+
+    def s1_ori_changed(self, event: tk.Event) -> None:
+        self.controller.s1_ori = self.s1_ori.get()

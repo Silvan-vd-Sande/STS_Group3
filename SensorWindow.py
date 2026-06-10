@@ -189,6 +189,8 @@ class SensorControlPanel:
         )
         self.mag_cal_status_label.pack(side=tk.LEFT, padx=5, pady=5)
 
+
+
         # Set up close handler
         self.window.protocol("WM_DELETE_WINDOW", lambda: self.parent.close_sensor_cp(sensor_id))
 

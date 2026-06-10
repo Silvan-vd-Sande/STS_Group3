@@ -9,6 +9,7 @@ from SettingsPage import SettingsPage
 from InterfacePage import InterfacePage
 import numpy as np
 import socket
+from AngleKalman1D import AngleKalman1D
 
 
 def wrap_pi(angle: np.ndarray) -> np.ndarray:
@@ -51,7 +52,30 @@ class GyroPlotterApp(tk.Tk):
             for sensor_id in sensor_ids
         }
 
+        # One Kalman filter per sensor per axis
+        self.kf_roll = {}
+        self.kf_pitch = {}
+        self.kf_yaw = {}
+
+        for sensor_id in self.sensor_ids:
+            for filter_dict in (self.kf_roll, self.kf_pitch, self.kf_yaw):
+                filter_dict[sensor_id] = AngleKalman1D()
+
+        self.R_acc = {
+            sensor_id: 0.05
+            for sensor_id in sensor_ids
+        } # accelerometer measurement noise (roll, pitch)
+
+        self.R_mag = {
+            sensor_id: 0.10
+            for sensor_id in sensor_ids
+        }   # magnetometer measurement noise (yaw)
+
         self.lock = threading.Lock()
+
+        # Default assumed orientation
+        self.l1_ori = "RIGHT"
+        self.s1_ori = "RIGHT"
 
         self.ESP_IP = "192.168.4.1"
         self.SERVER_PORT = 80
@@ -123,36 +147,21 @@ class GyroPlotterApp(tk.Tk):
                         mag_x, mag_y, mag_z = datapoint["mag"]
 
                         acc_roll = atan2(acc_y, acc_z)
+                        acc_pitch = atan2(-acc_x, sqrt(acc_y ** 2 + acc_z ** 2))
 
-                        acc_pitch = atan2(
-                            -acc_x,
-                            sqrt(acc_y ** 2 + acc_z ** 2)
-                        )
+                        # --- Kalman Filter ---
+                        roll, _, _ = self.kf_roll[sensor_id].step(gyr_x, acc_roll, delta_time, self.R_acc[sensor_id])
+                        pitch, _, _ = self.kf_pitch[sensor_id].step(gyr_y, acc_pitch, delta_time, self.R_acc[sensor_id])
 
-                        # Complementary Filter
-                        gyr_roll = wrap_pi(self.data[sensor_id][-1]["h_roll"] + gyr_x * delta_time)
-                        gyr_pitch = wrap_pi(self.data[sensor_id][-1]["h_pitch"] + gyr_y * delta_time)
-
-                        roll_delta = wrap_pi(acc_roll - gyr_roll)
-                        pitch_delta = wrap_pi(acc_pitch - gyr_pitch)
-
-                        tau = 1
-
-                        alpha = 1 - tau / (tau + delta_time)
-                        roll = wrap_pi(gyr_roll + alpha * roll_delta)
-                        pitch = wrap_pi(gyr_pitch + alpha * pitch_delta)
-
+                        # Yaw: tilt-compensated magnetometer heading
                         Xh = mag_x * cos(pitch) + mag_z * sin(pitch)
                         Yh = (
                                 mag_x * sin(roll) * sin(pitch)
                                 - mag_y * cos(roll)
                                 + mag_z * sin(roll) * cos(pitch)
                         )
-
                         mag_yaw = atan2(Yh, Xh)
-                        gyr_yaw = wrap_pi(self.data[sensor_id][-1]["h_yaw"] + gyr_z * delta_time)
-                        yaw_delta = wrap_pi(mag_yaw - gyr_yaw)
-                        yaw = wrap_pi(gyr_yaw + alpha * yaw_delta)
+                        yaw, _, _ = self.kf_yaw[sensor_id].step(gyr_z, mag_yaw, delta_time, self.R_mag[sensor_id])
 
                         datapoint["acc_roll"] = acc_roll
                         datapoint["acc_pitch"] = acc_pitch
@@ -218,7 +227,7 @@ class GyroPlotterApp(tk.Tk):
             if self.l1_sensor is None or self.s1_sensor is None:
                 frame.status_label.config(text="No Sensor Selected")
             elif self.data[self.l1_sensor] and self.data[self.s1_sensor]:
-                frame.draw_stickman(self.data[self.l1_sensor][-1]['h_roll'], self.data[self.s1_sensor][-1]['h_roll'])
+                frame.draw_stickman(self.data[self.l1_sensor][-1]['h_roll'] * (-1 if self.l1_ori == "LEFT" else 1), self.data[self.s1_sensor][-1]['h_roll'] * (-1 if self.s1_ori == "LEFT" else 1))
 
         # Schedule the next update
         self.after(50, self.pull_data)

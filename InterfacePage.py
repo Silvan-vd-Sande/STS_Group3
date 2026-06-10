@@ -337,15 +337,18 @@ class InterfacePage(tk.Frame):
 
     def collect_l1_cal_data(self, data: list[dict[str, tuple]]) -> None:
         """Collect l1 roll samples during calibration"""
+        ori = -1 if self.contr.l1_ori == "LEFT" else 1
         with self.contr.lock:
             for datapoint in data:
-                self.cal_samples_l1.append(datapoint["h_roll"])
+                self.cal_samples_l1.append(datapoint["h_roll"] * ori)
 
     def collect_s1_cal_data(self, data: list[dict[str, tuple]]) -> None:
         """Collect s1 roll samples during calibration"""
+        ori = -1 if self.contr.s1_ori == "LEFT" else 1
+
         with self.contr.lock:
             for datapoint in data:
-                self.cal_samples_s1.append(datapoint["h_roll"])
+                self.cal_samples_s1.append(datapoint["h_roll"] * ori)
 
     def send_to_esp(self, contr: GyroPlotterApp) -> None:
         """Send message to ESP on separate Thread"""
