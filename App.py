@@ -4,7 +4,6 @@ import tkinter as tk
 from collections import deque
 from SensorWindow import SensorControlPanel
 from math import atan2, sqrt, sin, cos, pi
-from MainPage import MainPage
 from SettingsPage import SettingsPage
 from InterfacePage import InterfacePage
 import numpy as np
@@ -90,7 +89,7 @@ class GyroPlotterApp(tk.Tk):
         self.frames = {}
 
         # Add pages here
-        for Page in (MainPage, SettingsPage, InterfacePage):
+        for Page in (SettingsPage, InterfacePage):
             page_name = Page.__name__
 
             frame = Page(container, self)
@@ -99,7 +98,7 @@ class GyroPlotterApp(tk.Tk):
 
             frame.grid(row=0, column=0, sticky="nsew")
 
-        self.show_frame("MainPage")
+        self.show_frame("InterfacePage")
 
         # Start update loop
         self.pull_data()
@@ -224,10 +223,9 @@ class GyroPlotterApp(tk.Tk):
         if self.frame == "InterfacePage":
             frame = self.frames["InterfacePage"]
 
-            if self.l1_sensor is None or self.s1_sensor is None:
-                frame.status_label.config(text="No Sensor Selected")
-            elif self.data[self.l1_sensor] and self.data[self.s1_sensor]:
-                frame.draw_stickman(self.data[self.l1_sensor][-1]['h_roll'] * (-1 if self.l1_ori == "LEFT" else 1), self.data[self.s1_sensor][-1]['h_roll'] * (-1 if self.s1_ori == "LEFT" else 1))
+            if self.l1_sensor is not None and self.s1_sensor is not None:
+                if self.data[self.l1_sensor] and self.data[self.s1_sensor]:
+                    frame.draw_stickman(self.data[self.l1_sensor][-1]['h_roll'] * (-1 if self.l1_ori == "LEFT" else 1), self.data[self.s1_sensor][-1]['h_roll'] * (-1 if self.s1_ori == "LEFT" else 1))
 
         # Schedule the next update
         self.after(50, self.pull_data)

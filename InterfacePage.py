@@ -52,9 +52,10 @@ class InterfacePage(tk.Frame):
 
         self.status_label = tk.Label(
             vis,
-            text="Status: -",
+            text="Both l1 and s1 vertebrae sensors not set",
             font=("Arial", 20, "bold"),
-            bg="#f5f5f5"
+            bg="#f5f5f5",
+            fg="red"
         )
         self.status_label.pack()
 
@@ -88,12 +89,12 @@ class InterfacePage(tk.Frame):
         buttons = tk.Frame(self)
         buttons.grid(row=1, column=2, sticky="nsew")
 
-        back_btn = tk.Button(
+        settings_btn = tk.Button(
             buttons,
-            text="Back",
-            command=lambda: contr.show_frame("MainPage")
+            text="Settings",
+            command=lambda: contr.show_frame("SettingsPage")
         )
-        back_btn.pack(pady=10, side='top')
+        settings_btn.pack(pady=10, side='top')
 
         self.cal_btn = tk.Button(
             buttons,
@@ -109,7 +110,6 @@ class InterfacePage(tk.Frame):
 
     def determine_status(self, l1_angle: float, s1_angle: float) -> tuple[float, str, str, int]:
         raw_lumbar = self.angle_diff(s1_angle, l1_angle)
-        print(l1_angle, s1_angle)
 
         lumbar_angle = self.angle_diff(raw_lumbar, self.lumbar_offset)
         angle_deg = np.rad2deg(lumbar_angle)
@@ -119,8 +119,7 @@ class InterfacePage(tk.Frame):
         elif  40 > angle_deg :
             return angle_deg, "WARNING", "orange", 1
         else :
-            return angle_deg, "BAD", "red", 1
-
+            return angle_deg, "BAD", "red", 2
 
     def draw_stickman(self, l1_angle: float, s1_angle: float) -> None:
         self.canvas.delete("all")
@@ -128,7 +127,8 @@ class InterfacePage(tk.Frame):
         #base coordinates
         sensor_degrees, status, color, level = self.determine_status(l1_angle, s1_angle)
         if level != self.status:
-            self.send_to_esp(self.contr)
+            self.send_to_esp(self.contr, level)
+            self.status = level
 
         angle_degrees = min(sensor_degrees, self.max_degrees)
         angle_rad = math.radians(angle_degrees)
@@ -350,19 +350,23 @@ class InterfacePage(tk.Frame):
             for datapoint in data:
                 self.cal_samples_s1.append(datapoint["h_roll"] * ori)
 
-    def send_to_esp(self, contr: GyroPlotterApp) -> None:
+    def send_to_esp(self, contr: GyroPlotterApp, level: int) -> None:
         """Send message to ESP on separate Thread"""
-        thread = threading.Thread(target=self._esp_task, args=(contr,))
+        thread = threading.Thread(target=self._esp_task, args=(contr, level,))
         thread.daemon = True
         thread.start()
 
-    def _esp_task(self, contr: GyroPlotterApp) -> None:
-        num = random.randint(0, 2)
-        print(num)
+    def _esp_task(self, contr: GyroPlotterApp, level) -> None:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(5)  # Don't hang forever
                 s.connect((contr.ESP_IP, contr.SERVER_PORT))
-                s.sendall(str(num).encode())
+                s.sendall(str(level).encode())
         except (ConnectionResetError, OSError) as e:
             print(f"Connection failed: {e}")
+
+    def update_sensors_status(self) -> None:
+        if self.contr.l1_sensor is None and self.contr.s1_sensor is None:
+            self.status_label.config(text="Both l1 and s1 vertebrae sensors not set", fg="red")
+        elif self.contr.l1_sensor is None or self.contr.s1_sensor is None:
+            self.status_label.config(text=("s1" if self.contr.s1_sensor is None else "l1") + " vertebrae sensor not set", fg="red")
