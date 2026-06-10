@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import threading
 import random
 import socket
-
+import time
 
 if TYPE_CHECKING:
     from App import GyroPlotterApp
@@ -32,6 +32,12 @@ class InterfacePage(tk.Frame):
         self.calibrating_up = False
         self.cal_samples_l1 = []
         self.cal_samples_s1 = []
+
+        self._esp_lock = threading.Lock()
+        self._last_sent = 0.0
+        self._ESP_COOLDOWN = 0.5
+        self._socket = None
+        self.passed_level = 0
 
         self.feedback_label_states = {
             "GOOD": ("Good lifting posture: the back is almost straight.", "green"),
@@ -350,20 +356,46 @@ class InterfacePage(tk.Frame):
             for datapoint in data:
                 self.cal_samples_s1.append(datapoint["h_roll"] * ori)
 
+    def _ensure_connected(self, contr: GyroPlotterApp) -> bool:
+        """Open socket if not already connected."""
+        if self._socket is not None:
+            return True
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(1)
+            s.connect((contr.ESP_IP, contr.SERVER_PORT))
+            self._socket = s
+            return True
+        except OSError as e:
+            print(f"Connect failed: {e}")
+            self._socket = None
+            return False
+
     def send_to_esp(self, contr: GyroPlotterApp, level: int) -> None:
-        """Send message to ESP on separate Thread"""
-        thread = threading.Thread(target=self._esp_task, args=(contr, level,))
-        thread.daemon = True
+        now = time.monotonic()
+        if now - self._last_sent < self._ESP_COOLDOWN:
+            return
+        self._last_sent = now
+        thread = threading.Thread(target=self._esp_task, args=(contr, level), daemon=True)
         thread.start()
 
-    def _esp_task(self, contr: GyroPlotterApp, level) -> None:
+    def _esp_task(self, contr: GyroPlotterApp, level: int) -> None:
+        if not self._esp_lock.acquire(blocking=False):
+            return
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(5)  # Don't hang forever
-                s.connect((contr.ESP_IP, contr.SERVER_PORT))
-                s.sendall(str(level).encode())
-        except (ConnectionResetError, OSError) as e:
-            print(f"Connection failed: {e}")
+            if not self._ensure_connected(contr):
+                return
+            self._socket.sendall(str(level).encode())
+            self.passed_level = level
+            print(f"Sent {level}")
+        except (OSError, ConnectionResetError) as e:
+            print(f"Send failed: {e}")
+            self._socket = None  # Force reconnect next time
+        finally:
+            self._esp_lock.release()
+            if self.passed_level != self.status:
+                print(f"Successfully passed level {self.passed_level} outdated. Sending {self.status}")
+                self._esp_task(contr, self.status)
 
     def update_sensors_status(self) -> None:
         if self.contr.l1_sensor is None and self.contr.s1_sensor is None:
